@@ -1,8 +1,6 @@
 # KloverTech — Intelligent Document Processing Agent
 
-An agentic application that ingests PDFs, Word documents, and images, extracts their content, detects the source language, and automatically translates non-English text to English. Designed to run locally and on [Render](https://render.com).
-
-
+An agentic application that ingests PDFs, Word documents, and images, extracts their content, detects the source language, and automatically translates non-English text to English. Runs locally or on [Render](https://render.com).
 
 ---
 
@@ -51,34 +49,32 @@ Browser
 
 ## Architecture decisions
 
-The assignment asked for a working prototype in a short time. Each choice below is the simplest thing that still shows a real agent, not a one-shot script.
-
 **LangGraph instead of a single Python function.**  
-The pipeline is extract → judge quality → maybe retry → translate → save. A `StateGraph` makes that visible: named nodes, conditional edges, and a live step log. A hidden `if/else` script would work, but you could not demo routing or self-reflection.
+The pipeline is extract → judge quality → maybe retry → translate → save. A `StateGraph` makes each step a named node with conditional edges and a persisted log. A hidden `if/else` script would do the same work but would hide routing and self-reflection.
 
 **PyMuPDF first, GPT-4o Vision only as fallback.**  
-Digital PDFs already contain selectable text. Paying for Vision on every file is slow and expensive. PyMuPDF is the fast path; if quality is poor (empty, CID garbage, or an LLM “this looks garbled”), we convert pages to images and OCR with Vision. That is the self-reflection + retry loop.
+Digital PDFs already contain selectable text. Calling Vision on every file is slow and expensive. PyMuPDF is the fast path; if quality is poor (empty, CID garbage, or an LLM “this looks garbled”), pages are converted to images and OCR’d with Vision.
 
 **One model (GPT-4o) for OCR, quality review, language detect, and translate.**  
-Tesseract + langdetect + DeepL would mean three extra systems and weak multilingual OCR. One API key keeps the prototype simple. JSON mode gives structured `{source_language, is_english, translated_text}` without a parser.
+Tesseract + langdetect + DeepL would add three extra systems and weaker multilingual OCR. One API key keeps the prototype simple. JSON mode returns `{source_language, is_english, translated_text}` without a custom parser.
 
 **PostgreSQL rows, not a JSON blob on disk.**  
-“Structured” here means a real schema: filename, type, language, quality, status, original text, translated text, plus a `document_logs` table. Documents vary too much to invent invoice fields for every upload. Text columns plus metadata is the smallest schema that is still queryable in a demo.
+Structured storage means a schema: filename, type, language, quality, status, original text, translated text, plus a `document_logs` table. Uploads vary too much to invent invoice-style fields for every file. Text columns plus metadata is the smallest queryable schema.
 
 **Quality is two-layer, not a character-ratio only.**  
 A naive “% alphanumeric” check fails short valid docs and can pass broken `(cid:12)` PDF extracts. Cheap structural checks run first (empty, control chars, CID markers). Only unclear extracts call GPT-4o. Score `< 0.3` retries Vision once (`vision_attempted` stops a loop).
 
 **FastAPI `BackgroundTasks` instead of Celery.**  
-Upload must return immediately so the UI can poll. For one process and a take-home, in-process tasks are enough. Celery + Redis would isolate CPU work; that is a known weakness, not a day-one requirement.
+Upload returns immediately so the UI can poll. One process is enough at this scale. Celery + Redis would isolate CPU work; see Known weaknesses.
 
 **Polling instead of WebSockets.**  
-The UI hits `/documents/{id}` and `/logs` every 2s. Simpler to deploy and debug than a socket server. Fine at this volume.
+The UI hits `/documents/{id}` and `/logs` every 2s. Simpler to deploy and debug than a socket server.
 
 **Render for hosting, any Postgres for data.**  
-Render’s free web service is enough for a public demo URL. The app does **not** require Supabase. `DATABASE_URL` can be local Postgres, Render Postgres, Supabase, or any other host. Tables are created on boot.
+Render provides a public URL. The app does not require Supabase. `DATABASE_URL` can be local Postgres, Render Postgres, Supabase, or another host. Tables are created on boot.
 
-**Why this is the simplest solution.**  
-One web process, one graph, one model, one database. No queue, no object store, no field-level IE pipeline. That matches “do not over-engineer” while still covering ingest, structure, translation, and an agentic pattern.
+**Simplest shape that covers the use case.**  
+One web process, one graph, one model, one database. No queue, no object store, no field-level information-extraction pipeline.
 
 ---
 
@@ -87,7 +83,7 @@ One web process, one graph, one model, one database. No queue, no object store, 
 | Layer | Choice | Why |
 |---|---|---|
 | API | FastAPI + uvicorn | Async, auto-generates `/docs`, `BackgroundTasks` built-in |
-| Agent | LangGraph `StateGraph` | Explicit graph — each step is a named node, easy to inspect and demo |
+| Agent | LangGraph `StateGraph` | Explicit graph — each step is a named node |
 | PDF extraction | PyMuPDF | Fast path for digital PDFs; `.get_pixmap()` for scanned pages |
 | Word extraction | python-docx | Standard |
 | Image / scan OCR | GPT-4o Vision | Multilingual scans — Tesseract is weak on Arabic/Hindi/Chinese |
@@ -157,9 +153,7 @@ You need two things: a **web service** and a **Postgres URL**. Supabase is optio
    - `DATABASE_URL`
 6. Deploy. The app is live at `https://<service-name>.onrender.com`. Tables are created on first boot.
 
-**Demo note:** free Render instances sleep after 15 minutes idle and take ~1 minute to wake. Hit the URL once before the live walkthrough so it is warm.
-
-If the native Python build fails on PyMuPDF, switch the service to **Docker** — this repo includes a `Dockerfile`.
+Free Render instances sleep after 15 minutes idle. If the native Python build fails on PyMuPDF, switch the service to **Docker** — this repo includes a `Dockerfile`.
 
 ---
 
@@ -176,7 +170,7 @@ If the native Python build fails on PyMuPDF, switch the service to **Docker** �
 
 ---
 
-## Agentic patterns demonstrated
+## Agentic patterns
 
 - **Tool use**: the agent calls different extraction tools (`extract_pdf`, `extract_word`, `extract_image`) depending on context
 - **Routing**: a conditional edge sends each file to the correct extractor based on MIME type
@@ -210,7 +204,7 @@ klovertech/
 │   └── storage.py       # All DB read/write helpers
 ├── templates/
 │   └── index.html       # Single-page UI
-├── test_files/          # Sample Hindi / Arabic PDFs for the demo
+├── test_files/          # Sample Hindi / Arabic PDFs
 ├── requirements.txt
 ├── Dockerfile           # Optional — use if the native Python build fails
 ├── render.yaml          # Render Blueprint
