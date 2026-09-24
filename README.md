@@ -2,7 +2,7 @@
 
 An agentic application that ingests PDFs, Word documents, and images, extracts their content, detects the source language, and automatically translates non-English text to English. Designed to run locally and on [Render](https://render.com).
 
-**Live demo:** deploy to Render, then paste your `*.onrender.com` URL here.
+
 
 ---
 
