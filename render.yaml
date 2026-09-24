@@ -1,5 +1,6 @@
 # Render Blueprint — web service only.
-# Reuse the existing Supabase Postgres URL (set DATABASE_URL in the dashboard).
+# Set DATABASE_URL in the dashboard to any Postgres URL
+# (Render Postgres, Supabase, or another host).
 # Free web instances sleep after 15 minutes of idle traffic.
 
 services:

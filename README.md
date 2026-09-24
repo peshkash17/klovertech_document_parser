@@ -49,18 +49,51 @@ Browser
 
 ---
 
+## Architecture decisions
+
+The assignment asked for a working prototype in a short time. Each choice below is the simplest thing that still shows a real agent, not a one-shot script.
+
+**LangGraph instead of a single Python function.**  
+The pipeline is extract → judge quality → maybe retry → translate → save. A `StateGraph` makes that visible: named nodes, conditional edges, and a live step log. A hidden `if/else` script would work, but you could not demo routing or self-reflection.
+
+**PyMuPDF first, GPT-4o Vision only as fallback.**  
+Digital PDFs already contain selectable text. Paying for Vision on every file is slow and expensive. PyMuPDF is the fast path; if quality is poor (empty, CID garbage, or an LLM “this looks garbled”), we convert pages to images and OCR with Vision. That is the self-reflection + retry loop.
+
+**One model (GPT-4o) for OCR, quality review, language detect, and translate.**  
+Tesseract + langdetect + DeepL would mean three extra systems and weak multilingual OCR. One API key keeps the prototype simple. JSON mode gives structured `{source_language, is_english, translated_text}` without a parser.
+
+**PostgreSQL rows, not a JSON blob on disk.**  
+“Structured” here means a real schema: filename, type, language, quality, status, original text, translated text, plus a `document_logs` table. Documents vary too much to invent invoice fields for every upload. Text columns plus metadata is the smallest schema that is still queryable in a demo.
+
+**Quality is two-layer, not a character-ratio only.**  
+A naive “% alphanumeric” check fails short valid docs and can pass broken `(cid:12)` PDF extracts. Cheap structural checks run first (empty, control chars, CID markers). Only unclear extracts call GPT-4o. Score `< 0.3` retries Vision once (`vision_attempted` stops a loop).
+
+**FastAPI `BackgroundTasks` instead of Celery.**  
+Upload must return immediately so the UI can poll. For one process and a take-home, in-process tasks are enough. Celery + Redis would isolate CPU work; that is a known weakness, not a day-one requirement.
+
+**Polling instead of WebSockets.**  
+The UI hits `/documents/{id}` and `/logs` every 2s. Simpler to deploy and debug than a socket server. Fine at this volume.
+
+**Render for hosting, any Postgres for data.**  
+Render’s free web service is enough for a public demo URL. The app does **not** require Supabase. `DATABASE_URL` can be local Postgres, Render Postgres, Supabase, or any other host. Tables are created on boot.
+
+**Why this is the simplest solution.**  
+One web process, one graph, one model, one database. No queue, no object store, no field-level IE pipeline. That matches “do not over-engineer” while still covering ingest, structure, translation, and an agentic pattern.
+
+---
+
 ## Tech stack
 
 | Layer | Choice | Why |
 |---|---|---|
 | API | FastAPI + uvicorn | Async, auto-generates `/docs`, `BackgroundTasks` built-in |
 | Agent | LangGraph `StateGraph` | Explicit graph — each step is a named node, easy to inspect and demo |
-| PDF extraction | PyMuPDF | Fastest, most reliable; `.get_pixmap()` converts scanned pages to images |
+| PDF extraction | PyMuPDF | Fast path for digital PDFs; `.get_pixmap()` for scanned pages |
 | Word extraction | python-docx | Standard |
-| Image / scan OCR | GPT-4o Vision | Handles multilingual text in images — Tesseract would fail on Arabic/Hindi/Chinese |
-| Language detect + translate | GPT-4o (JSON mode) | One model, one API key — no langdetect, no DeepL |
-| Database | PostgreSQL (Supabase) | Structured storage, free tier, SQL-queryable during demo |
-| Deployment | Render | Free web service, Git-push deploy, no extra Postgres needed |
+| Image / scan OCR | GPT-4o Vision | Multilingual scans — Tesseract is weak on Arabic/Hindi/Chinese |
+| Language detect + translate | GPT-4o (JSON mode) | One model, one API key |
+| Database | PostgreSQL | Structured rows + logs; any host works |
+| Deployment | Render | Free public URL, Git-push deploy |
 
 ---
 
@@ -68,7 +101,7 @@ Browser
 
 ### Prerequisites
 - Python 3.11+
-- PostgreSQL (or a free [Supabase](https://supabase.com) project)
+- A PostgreSQL database (local install, [Render Postgres](https://render.com/docs/postgresql), or [Supabase](https://supabase.com) — any of these is fine)
 - OpenAI API key (GPT-4o access required)
 
 ### Steps
@@ -105,20 +138,24 @@ Open `http://localhost:8000` — tables are created automatically on first boot.
 
 ## Deploy to Render
 
-You already have Supabase Postgres — reuse that URL. Do **not** create a new Render database unless you want one.
+You need two things: a **web service** and a **Postgres URL**. Supabase is optional — any Postgres host works.
 
 1. Push this folder to a GitHub repo (Render deploys from Git).
-2. Go to [dashboard.render.com](https://dashboard.render.com) → **New** → **Blueprint** and select the repo  
-   (or **New** → **Web Service** and point it at the repo).
-3. If you create the service manually:
+2. Get a `DATABASE_URL` from one of:
+   - **Render Postgres** — Dashboard → **New** → **PostgreSQL** → Free (expires after 30 days)
+   - **Supabase** — Project → Database → connection string
+   - Any other Postgres instance you already run
+   A plain `postgresql://...` URL is fine; the app adds the `+asyncpg` driver itself.
+3. Go to [dashboard.render.com](https://dashboard.render.com) → **New** → **Web Service** and point it at the repo.
+4. Service settings:
    - **Runtime:** Python 3
    - **Build command:** `pip install -r requirements.txt`
    - **Start command:** `uvicorn main:app --host 0.0.0.0 --port $PORT`
    - **Instance type:** Free
-4. Add environment variables (same values as local `.env`):
+5. Environment variables:
    - `OPENAI_API_KEY`
-   - `DATABASE_URL` — your existing Supabase URL is fine (`postgresql://...` or `postgresql+asyncpg://...`)
-5. Deploy. The app is live at `https://<service-name>.onrender.com`.
+   - `DATABASE_URL`
+6. Deploy. The app is live at `https://<service-name>.onrender.com`. Tables are created on first boot.
 
 **Demo note:** free Render instances sleep after 15 minutes idle and take ~1 minute to wake. Hit the URL once before the live walkthrough so it is warm.
 
