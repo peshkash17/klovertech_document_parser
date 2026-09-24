@@ -1,0 +1,12 @@
+.env
+test_files/
+KloverTech_Interview_Task.pdf
+__pycache__/
+*.pyc
+*.pyo
+.pytest_cache/
+.venv/
+venv/
+*.egg-info/
+dist/
+build/

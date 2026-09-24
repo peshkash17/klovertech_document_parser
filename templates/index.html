@@ -1,0 +1,869 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+  <title>KloverTech — Document Processor</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com"/>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet"/>
+  <style>
+    *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+
+    :root{
+      --bg:        #f5f6fa;
+      --surface:   #ffffff;
+      --surface2:  #f8f9fc;
+      --border:    #e4e7ef;
+      --border2:   #d0d4e0;
+      --accent:    #4f46e5;
+      --accent-lt: #eef2ff;
+      --accent-md: #c7d2fe;
+      --green:     #059669;
+      --green-lt:  #ecfdf5;
+      --green-bd:  #a7f3d0;
+      --red:       #dc2626;
+      --red-lt:    #fef2f2;
+      --red-bd:    #fecaca;
+      --amber:     #d97706;
+      --amber-lt:  #fffbeb;
+      --text:      #111827;
+      --text2:     #4b5563;
+      --text3:     #9ca3af;
+      --text4:     #d1d5db;
+      --font:      'Inter', system-ui, sans-serif;
+      --mono:      'JetBrains Mono', monospace;
+      --shadow:    0 1px 3px rgba(0,0,0,.06), 0 1px 2px rgba(0,0,0,.04);
+      --shadow-md: 0 4px 12px rgba(0,0,0,.07), 0 1px 3px rgba(0,0,0,.05);
+      --radius:    10px;
+    }
+
+    html,body{height:100%}
+    body{
+      font-family:var(--font);
+      background:var(--bg);
+      color:var(--text);
+      display:flex;
+      flex-direction:column;
+      min-height:100vh;
+      overflow:hidden;
+    }
+
+    /* ── NAVBAR ── */
+    .navbar{
+      height:56px;
+      background:var(--surface);
+      border-bottom:1px solid var(--border);
+      display:flex;
+      align-items:center;
+      padding:0 24px;
+      gap:10px;
+      flex-shrink:0;
+      box-shadow:var(--shadow);
+      z-index:100;
+    }
+    .nav-logo{
+      display:flex;align-items:center;gap:9px;
+    }
+    .nav-icon{
+      width:30px;height:30px;border-radius:8px;
+      background:var(--accent);
+      display:flex;align-items:center;justify-content:center;
+      font-size:.85rem;color:#fff;
+    }
+    .nav-name{font-size:.95rem;font-weight:700;color:var(--text);letter-spacing:-.02em}
+    .nav-name em{font-style:normal;color:var(--accent)}
+    .nav-sep{width:1px;height:18px;background:var(--border);margin:0 4px}
+    .nav-sub{font-size:.78rem;color:var(--text3)}
+    .nav-right{margin-left:auto;display:flex;align-items:center;gap:8px}
+    .nav-tag{
+      font-size:.68rem;font-weight:600;color:var(--text3);
+      padding:.2rem .6rem;border-radius:6px;
+      background:var(--bg);border:1px solid var(--border);
+    }
+
+    /* ── LAYOUT ── */
+    .layout{
+      display:grid;
+      grid-template-columns:1fr 380px;
+      flex:1;
+      overflow:hidden;
+    }
+
+    /* ── LEFT ── */
+    .left{
+      overflow-y:auto;
+      padding:28px 32px;
+    }
+
+    /* ── UPLOAD ── */
+    .upload-card{
+      background:var(--surface);
+      border:2px dashed var(--border2);
+      border-radius:14px;
+      padding:40px 32px;
+      text-align:center;
+      cursor:pointer;
+      transition:border-color .2s, background .2s, box-shadow .2s;
+      margin-bottom:24px;
+      box-shadow:var(--shadow);
+    }
+    .upload-card:hover,.upload-card.drag{
+      border-color:var(--accent);
+      background:var(--accent-lt);
+      box-shadow:0 0 0 4px rgba(79,70,229,.08);
+    }
+    .upload-card:hover .uc-icon{background:var(--accent);color:#fff}
+
+    .uc-icon{
+      width:56px;height:56px;border-radius:14px;
+      background:var(--accent-lt);color:var(--accent);
+      display:flex;align-items:center;justify-content:center;
+      font-size:1.4rem;margin:0 auto 16px;
+      transition:background .2s, color .2s;
+    }
+    .uc-title{font-size:1rem;font-weight:600;color:var(--text);margin-bottom:6px}
+    .uc-desc{font-size:.83rem;color:var(--text2);margin-bottom:20px;line-height:1.6}
+
+    .btn{
+      display:inline-flex;align-items:center;gap:6px;
+      padding:.55rem 1.3rem;border-radius:8px;
+      font-size:.84rem;font-weight:600;font-family:var(--font);
+      cursor:pointer;border:none;transition:all .15s;
+    }
+    .btn-accent{
+      background:var(--accent);color:#fff;
+      box-shadow:0 1px 3px rgba(79,70,229,.3);
+    }
+    .btn-accent:hover{background:#4338ca;transform:translateY(-1px);box-shadow:0 4px 10px rgba(79,70,229,.3)}
+    .btn-accent:active{transform:translateY(0)}
+
+    .file-pills{display:flex;flex-wrap:wrap;justify-content:center;gap:5px;margin-top:14px}
+    .fpill{
+      font-size:.65rem;font-weight:600;letter-spacing:.03em;
+      padding:.2rem .55rem;border-radius:5px;
+      background:var(--bg);border:1px solid var(--border);color:var(--text3);
+    }
+    #fileInput{display:none}
+    .upload-err{
+      display:none;margin-top:12px;padding:.6rem .9rem;
+      background:var(--red-lt);border:1px solid var(--red-bd);
+      border-radius:8px;color:var(--red);font-size:.8rem;text-align:left;
+    }
+
+    /* ── PROGRESS ── */
+    .pbar{height:3px;background:var(--border);border-radius:99px;overflow:hidden;margin-bottom:24px;display:none}
+    .pbar.on{display:block}
+    .pbar-fill{
+      height:100%;background:var(--accent);border-radius:99px;
+      animation:load 1.3s ease-in-out infinite;
+    }
+    @keyframes load{
+      0%  {width:10%;margin-left:0}
+      50% {width:35%;margin-left:30%}
+      100%{width:10%;margin-left:90%}
+    }
+
+    /* ── JOB PANEL ── */
+    #jobPanel{display:none}
+
+    /* Job header card */
+    .job-card{
+      background:var(--surface);
+      border:1px solid var(--border);
+      border-radius:var(--radius);
+      padding:16px 18px;
+      display:flex;align-items:center;gap:14px;
+      margin-bottom:16px;
+      box-shadow:var(--shadow);
+    }
+    .job-icon{
+      width:42px;height:42px;border-radius:10px;
+      display:flex;align-items:center;justify-content:center;
+      font-size:1.1rem;flex-shrink:0;
+    }
+    .ji-pdf {background:#fef2f2}
+    .ji-docx{background:#eff6ff}
+    .ji-img {background:#faf5ff}
+    .job-info{flex:1;min-width:0}
+    .job-name{font-size:.92rem;font-weight:600;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+    .job-sub{font-size:.74rem;color:var(--text3);margin-top:3px}
+
+    .badge{
+      display:inline-flex;align-items:center;gap:5px;
+      font-size:.68rem;font-weight:700;letter-spacing:.04em;text-transform:uppercase;
+      padding:.28rem .7rem;border-radius:99px;flex-shrink:0;
+    }
+    .bdg-proc{background:var(--bg);color:var(--text2);border:1px solid var(--border2)}
+    .bdg-done{background:var(--green-lt);color:var(--green);border:1px solid var(--green-bd)}
+    .bdg-fail{background:var(--red-lt);color:var(--red);border:1px solid var(--red-bd)}
+
+    /* ── PIPELINE ── */
+    .pipeline-card{
+      background:var(--surface);
+      border:1px solid var(--border);
+      border-radius:var(--radius);
+      padding:16px 20px;
+      margin-bottom:16px;
+      box-shadow:var(--shadow);
+    }
+    .pipeline{display:flex;align-items:center;gap:0}
+    .ps{
+      display:flex;flex-direction:column;align-items:center;gap:6px;
+      flex:1;opacity:.35;transition:opacity .3s;
+    }
+    .ps.done,.ps.active{opacity:1}
+    .ps-circle{
+      width:34px;height:34px;border-radius:50%;
+      display:flex;align-items:center;justify-content:center;
+      font-size:.8rem;
+      background:var(--bg);border:1.5px solid var(--border2);
+      transition:all .3s;
+    }
+    .ps.done .ps-circle{background:var(--green-lt);border-color:var(--green);color:var(--green)}
+    .ps.active .ps-circle{
+      background:var(--accent-lt);border-color:var(--accent);color:var(--accent);
+      animation:ring .8s ease-in-out infinite;
+    }
+    @keyframes ring{
+      0%,100%{box-shadow:0 0 0 0 rgba(79,70,229,.2)}
+      50%{box-shadow:0 0 0 5px rgba(79,70,229,.1)}
+    }
+    .ps-lbl{font-size:.6rem;font-weight:600;text-transform:uppercase;letter-spacing:.05em;color:var(--text3);text-align:center}
+    .ps.done .ps-lbl,.ps.active .ps-lbl{color:var(--text2)}
+    .ps-line{flex:1;height:1.5px;background:var(--border);margin-bottom:18px;min-width:8px}
+
+    /* ── CARDS ── */
+    .card{
+      background:var(--surface);
+      border:1px solid var(--border);
+      border-radius:var(--radius);
+      box-shadow:var(--shadow);
+      overflow:hidden;
+      margin-bottom:16px;
+    }
+    .card-header{
+      display:flex;align-items:center;justify-content:space-between;
+      padding:12px 16px;
+      border-bottom:1px solid var(--border);
+      background:var(--surface2);
+    }
+    .card-title{
+      font-size:.7rem;font-weight:700;text-transform:uppercase;
+      letter-spacing:.07em;color:var(--text3);
+      display:flex;align-items:center;gap:6px;
+    }
+    .live-dot{
+      width:7px;height:7px;border-radius:50%;background:var(--accent);
+      animation:blink 1.2s ease-in-out infinite;
+    }
+    @keyframes blink{0%,100%{opacity:1}50%{opacity:.3}}
+
+    /* ── STEPS ── */
+    .step{
+      display:flex;align-items:flex-start;gap:12px;
+      padding:12px 16px;
+      border-bottom:1px solid var(--border);
+      animation:slideIn .2s ease;
+    }
+    .step:last-child{border-bottom:none}
+    @keyframes slideIn{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:translateY(0)}}
+
+    .step-badge{
+      width:22px;height:22px;border-radius:50%;flex-shrink:0;margin-top:1px;
+      display:flex;align-items:center;justify-content:center;
+      font-size:.6rem;font-weight:700;
+      background:var(--green-lt);border:1.5px solid var(--green-bd);color:var(--green);
+    }
+    .step-content{flex:1}
+    .step-tool{font-family:var(--mono);font-size:.74rem;font-weight:500;color:var(--accent);margin-bottom:3px}
+    .step-summary{font-size:.8rem;color:var(--text2);line-height:1.5}
+    .steps-empty{padding:28px;text-align:center;color:var(--text3);font-size:.82rem}
+
+    /* ── RESULT ── */
+    .result-stats{
+      display:grid;grid-template-columns:repeat(auto-fit,minmax(100px,1fr));
+      gap:1px;background:var(--border);
+      border-bottom:1px solid var(--border);
+    }
+    .rstat{
+      background:var(--surface);
+      padding:14px 16px;
+    }
+    .rstat-label{font-size:.64rem;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--text3);margin-bottom:5px}
+    .rstat-val{font-size:1rem;font-weight:700;color:var(--text)}
+    .rstat-val.green{color:var(--green)}
+
+    .tabs{display:flex;padding:0 16px;border-bottom:1px solid var(--border);gap:2px}
+    .tab{
+      padding:.65rem .9rem;font-size:.8rem;font-weight:600;font-family:var(--font);
+      color:var(--text3);background:none;border:none;cursor:pointer;
+      border-bottom:2px solid transparent;margin-bottom:-1px;transition:all .15s;
+    }
+    .tab:hover{color:var(--text2)}
+    .tab.on{color:var(--accent);border-bottom-color:var(--accent)}
+
+    .tab-pane{display:none;padding:14px 16px}
+    .tab-pane.on{display:block}
+
+    .text-box{
+      background:var(--surface2);
+      border:1px solid var(--border);
+      border-radius:8px;
+      padding:12px 14px;
+      font-family:var(--mono);
+      font-size:.78rem;
+      color:var(--text2);
+      white-space:pre-wrap;
+      word-break:break-word;
+      max-height:220px;
+      overflow-y:auto;
+      line-height:1.65;
+    }
+    .text-box::-webkit-scrollbar{width:4px}
+    .text-box::-webkit-scrollbar-thumb{background:var(--border2);border-radius:99px}
+
+    .copy-btn{
+      font-size:.7rem;font-weight:600;font-family:var(--font);
+      padding:.22rem .65rem;border-radius:6px;
+      border:1px solid var(--border2);background:var(--surface);
+      color:var(--text2);cursor:pointer;transition:all .15s;
+    }
+    .copy-btn:hover{background:var(--bg);border-color:var(--accent-md);color:var(--accent)}
+
+    .err-box{
+      margin:14px 16px;padding:10px 14px;border-radius:8px;
+      background:var(--red-lt);border:1px solid var(--red-bd);
+      color:var(--red);font-size:.8rem;line-height:1.5;
+    }
+
+    /* ── SIDEBAR ── */
+    .sidebar{
+      border-left:1px solid var(--border);
+      background:var(--surface);
+      display:flex;flex-direction:column;
+      overflow:hidden;
+    }
+    .sidebar-header{
+      padding:14px 18px;
+      border-bottom:1px solid var(--border);
+      display:flex;align-items:center;justify-content:space-between;
+      flex-shrink:0;
+      background:var(--surface2);
+    }
+    .sidebar-title{font-size:.7rem;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--text3)}
+    .count-badge{
+      font-size:.65rem;font-weight:700;
+      padding:.15rem .5rem;border-radius:99px;
+      background:var(--bg);color:var(--text3);border:1px solid var(--border);
+    }
+    .sidebar-body{flex:1;overflow-y:auto;padding:12px}
+
+    /* ── HISTORY ITEM ── */
+    .hi{
+      border:1px solid var(--border);
+      border-radius:10px;
+      margin-bottom:8px;
+      overflow:hidden;
+      transition:border-color .15s, box-shadow .15s;
+    }
+    .hi:hover{border-color:var(--border2);box-shadow:var(--shadow)}
+    .hi.open{border-color:var(--accent-md);box-shadow:0 0 0 3px rgba(79,70,229,.07)}
+
+    .hi-row{
+      display:flex;align-items:center;gap:10px;
+      padding:11px 13px;cursor:pointer;
+    }
+    .hi-icon{
+      width:34px;height:34px;border-radius:8px;
+      display:flex;align-items:center;justify-content:center;
+      font-size:.9rem;flex-shrink:0;
+    }
+    .hi-body{flex:1;min-width:0}
+    .hi-name{font-size:.8rem;font-weight:600;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+    .hi-meta{font-size:.68rem;color:var(--text3);margin-top:2px}
+    .hi-right{display:flex;flex-direction:column;align-items:flex-end;gap:3px;flex-shrink:0}
+    .hi-status{font-size:.85rem}
+    .hi-chev{font-size:.6rem;color:var(--text4);transition:transform .2s}
+    .hi.open .hi-chev{transform:rotate(180deg)}
+
+    .hi-detail{
+      display:none;
+      border-top:1px solid var(--border);
+      background:var(--surface2);
+    }
+    .hi.open .hi-detail{display:block}
+
+    .hi-chips{
+      display:flex;gap:6px;flex-wrap:wrap;
+      padding:10px 13px;
+      border-bottom:1px solid var(--border);
+    }
+    .hchip{
+      font-size:.65rem;font-weight:600;
+      padding:.2rem .55rem;border-radius:5px;
+      background:var(--surface);border:1px solid var(--border);color:var(--text2);
+    }
+    .hchip.lang{background:var(--accent-lt);color:var(--accent);border-color:var(--accent-md)}
+    .hchip.ok{background:var(--green-lt);color:var(--green);border-color:var(--green-bd)}
+
+    .hi-steps-wrap{padding:10px 13px;border-bottom:1px solid var(--border)}
+    .hi-section-label{
+      font-size:.62rem;font-weight:700;text-transform:uppercase;
+      letter-spacing:.06em;color:var(--text3);margin-bottom:8px;
+    }
+    .hi-step{
+      display:flex;align-items:flex-start;gap:7px;
+      padding:5px 0;border-bottom:1px solid var(--border);
+    }
+    .hi-step:last-child{border-bottom:none}
+    .hi-step-num{
+      width:18px;height:18px;border-radius:50%;flex-shrink:0;margin-top:1px;
+      display:flex;align-items:center;justify-content:center;
+      font-size:.55rem;font-weight:700;
+      background:var(--green-lt);border:1px solid var(--green-bd);color:var(--green);
+    }
+    .hi-step-tool{font-family:var(--mono);font-size:.67rem;color:var(--accent);font-weight:500;margin-bottom:2px}
+    .hi-step-desc{font-size:.71rem;color:var(--text2);line-height:1.4}
+
+    .hi-texts{padding:10px 13px}
+    .hi-pre{
+      background:var(--surface);border:1px solid var(--border);border-radius:7px;
+      padding:8px 10px;font-family:var(--mono);font-size:.7rem;
+      color:var(--text2);white-space:pre-wrap;word-break:break-word;
+      max-height:90px;overflow-y:auto;line-height:1.55;
+    }
+    .hi-pre::-webkit-scrollbar{width:3px}
+    .hi-pre::-webkit-scrollbar-thumb{background:var(--border2);border-radius:99px}
+
+    .hi-empty{padding:2.5rem 1rem;text-align:center;color:var(--text3);font-size:.8rem;line-height:1.8}
+
+    /* ── SPINNER ── */
+    .spin{
+      display:inline-block;width:11px;height:11px;
+      border:1.5px solid currentColor;border-top-color:transparent;
+      border-radius:50%;animation:rot .65s linear infinite;vertical-align:middle;
+    }
+    @keyframes rot{to{transform:rotate(360deg)}}
+
+    /* ── SCROLLBARS ── */
+    .left::-webkit-scrollbar,.sidebar-body::-webkit-scrollbar{width:5px}
+    .left::-webkit-scrollbar-thumb,.sidebar-body::-webkit-scrollbar-thumb{background:var(--border2);border-radius:99px}
+  </style>
+</head>
+<body>
+
+<!-- NAVBAR -->
+<nav class="navbar">
+  <div class="nav-logo">
+    <div class="nav-icon">⚡</div>
+    <span class="nav-name">Klover<em>Tech</em></span>
+  </div>
+  <div class="nav-sep"></div>
+  <span class="nav-sub">Intelligent Document Processor</span>
+  <div class="nav-right">
+    <span class="nav-tag">GPT-4o</span>
+    <span class="nav-tag">LangGraph</span>
+    <span class="nav-tag">PostgreSQL</span>
+  </div>
+</nav>
+
+<!-- LAYOUT -->
+<div class="layout">
+
+  <!-- LEFT -->
+  <div class="left">
+
+    <!-- Upload -->
+    <div class="upload-card" id="dropZone">
+      <div class="uc-icon">📄</div>
+      <div class="uc-title">Upload a document</div>
+      <div class="uc-desc">
+        Drop a PDF, Word file, or PNG here — the agent will extract the text,<br>
+        detect the language, and translate anything non-English to English.
+      </div>
+      <label class="btn btn-accent" for="fileInput">↑ &nbsp;Choose File</label>
+      <input type="file" id="fileInput" accept=".pdf,.docx,.png"/>
+      <div class="file-pills">
+        <span class="fpill">PDF</span><span class="fpill">DOCX</span><span class="fpill">PNG</span>
+        <span class="fpill">Max 20 MB</span>
+      </div>
+      <div class="upload-err" id="uploadErr"></div>
+    </div>
+
+    <!-- Progress bar -->
+    <div class="pbar" id="pbar"><div class="pbar-fill"></div></div>
+
+    <!-- Job panel -->
+    <div id="jobPanel">
+
+      <!-- Header -->
+      <div class="job-card">
+        <div class="job-icon ji-img" id="jobIcon">📄</div>
+        <div class="job-info">
+          <div class="job-name" id="jobName">—</div>
+          <div class="job-sub"  id="jobSub">Processing…</div>
+        </div>
+        <span class="badge bdg-proc" id="jobBadge"><span class="spin"></span>&nbsp;Processing</span>
+      </div>
+
+      <!-- Pipeline -->
+      <div class="pipeline-card">
+        <div class="pipeline">
+          <div class="ps" id="ps-route">
+            <div class="ps-circle">1</div>
+            <div class="ps-lbl">Route</div>
+          </div>
+          <div class="ps-line"></div>
+          <div class="ps" id="ps-extract">
+            <div class="ps-circle">2</div>
+            <div class="ps-lbl">Extract</div>
+          </div>
+          <div class="ps-line"></div>
+          <div class="ps" id="ps-assess">
+            <div class="ps-circle">3</div>
+            <div class="ps-lbl">Quality</div>
+          </div>
+          <div class="ps-line"></div>
+          <div class="ps" id="ps-translate">
+            <div class="ps-circle">4</div>
+            <div class="ps-lbl">Translate</div>
+          </div>
+          <div class="ps-line"></div>
+          <div class="ps" id="ps-save">
+            <div class="ps-circle">5</div>
+            <div class="ps-lbl">Save</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Steps -->
+      <div class="card">
+        <div class="card-header">
+          <span class="card-title"><span class="live-dot"></span> Agent Steps</span>
+        </div>
+        <div id="stepList"><div class="steps-empty">Waiting for agent…</div></div>
+      </div>
+
+      <!-- Result -->
+      <div class="card" id="resultCard" style="display:none">
+        <div class="card-header">
+          <span class="card-title" style="color:var(--green)">✓ &nbsp;Result</span>
+        </div>
+        <div class="result-stats">
+          <div class="rstat">
+            <div class="rstat-label">Language</div>
+            <div class="rstat-val" id="resLang">—</div>
+          </div>
+          <div class="rstat">
+            <div class="rstat-label">File Type</div>
+            <div class="rstat-val" id="resType">—</div>
+          </div>
+          <div class="rstat">
+            <div class="rstat-label">Quality</div>
+            <div class="rstat-val" id="resScore">—</div>
+          </div>
+          <div class="rstat" id="transStat" style="display:none">
+            <div class="rstat-label">Translation</div>
+            <div class="rstat-val green">✓ Done</div>
+          </div>
+        </div>
+        <div class="tabs">
+          <button class="tab on" onclick="switchTab('orig')">Original Text</button>
+          <button class="tab" id="tabTrans" style="display:none" onclick="switchTab('trans')">English Translation</button>
+        </div>
+        <div class="tab-pane on" id="tp-orig">
+          <div style="display:flex;justify-content:flex-end;margin-bottom:8px">
+            <button class="copy-btn" onclick="copyText('resOrig',this)">Copy</button>
+          </div>
+          <div class="text-box" id="resOrig"></div>
+        </div>
+        <div class="tab-pane" id="tp-trans">
+          <div style="display:flex;justify-content:flex-end;margin-bottom:8px">
+            <button class="copy-btn" onclick="copyText('resTrans',this)">Copy</button>
+          </div>
+          <div class="text-box" id="resTrans"></div>
+        </div>
+      </div>
+
+      <div class="err-box" id="errBox" style="display:none"></div>
+    </div><!-- /jobPanel -->
+
+  </div><!-- /left -->
+
+  <!-- SIDEBAR -->
+  <div class="sidebar">
+    <div class="sidebar-header">
+      <span class="sidebar-title">Document History</span>
+      <span class="count-badge" id="histCount">0</span>
+    </div>
+    <div class="sidebar-body" id="histList">
+      <div class="hi-empty">No documents yet.<br>Upload one to get started.</div>
+    </div>
+  </div>
+
+</div><!-- /layout -->
+
+<script>
+let currentId=null, poll=null, seenSteps=0;
+
+const PS_MAP={
+  route:'ps-route',
+  extract_pdf:'ps-extract',extract_word:'ps-extract',extract_image:'ps-extract',
+  assess_quality:'ps-assess',
+  translate:'ps-translate',
+  save_doc:'ps-save',
+};
+const ICON={pdf:'📕',docx:'📘',doc:'📘',image:'🖼️'};
+const ICLS={pdf:'ji-pdf',docx:'ji-docx',doc:'ji-docx',image:'ji-img'};
+
+// ── UPLOAD ──
+const dz=document.getElementById('dropZone');
+const fi=document.getElementById('fileInput');
+dz.addEventListener('dragover',e=>{e.preventDefault();dz.classList.add('drag')});
+dz.addEventListener('dragleave',()=>dz.classList.remove('drag'));
+dz.addEventListener('drop',e=>{
+  e.preventDefault();dz.classList.remove('drag');
+  if(e.dataTransfer.files[0]) uploadFile(e.dataTransfer.files[0]);
+});
+fi.addEventListener('change',()=>{if(fi.files[0]) uploadFile(fi.files[0])});
+
+async function uploadFile(file){
+  const err=document.getElementById('uploadErr');
+  err.style.display='none';
+  const fd=new FormData(); fd.append('file',file);
+  let res;
+  try{res=await fetch('/upload',{method:'POST',body:fd})}
+  catch(e){showErr(err,'Network error — is the server running?');return}
+  if(!res.ok){
+    const b=await res.json().catch(()=>({}));
+    showErr(err,b.detail||`Upload failed (HTTP ${res.status})`);return;
+  }
+  const d=await res.json();
+  startJob(d.id,file.name);
+  fi.value='';
+}
+function showErr(el,msg){el.textContent=msg;el.style.display='block'}
+
+// ── JOB ──
+function startJob(id,name){
+  currentId=id; seenSteps=0;
+  const ext=name.split('.').pop().toLowerCase();
+  const ft=(ext==='pdf')?'pdf':(ext==='docx'||ext==='doc')?'docx':'image';
+
+  $id('jobName').textContent=name;
+  $id('jobSub').textContent='Processing…';
+  const ic=$id('jobIcon');
+  ic.textContent=ICON[ft]||'📄';
+  ic.className=`job-icon ${ICLS[ft]||'ji-img'}`;
+
+  $id('jobBadge').innerHTML='<span class="spin"></span>&nbsp;Processing';
+  $id('jobBadge').className='badge bdg-proc';
+  $id('stepList').innerHTML='<div class="steps-empty">Waiting for agent…</div>';
+  $id('resultCard').style.display='none';
+  $id('errBox').style.display='none';
+  $id('jobPanel').style.display='block';
+  $id('pbar').classList.add('on');
+  document.querySelectorAll('.ps').forEach(p=>p.className='ps');
+
+  if(poll) clearInterval(poll);
+  poll=setInterval(()=>tick(id),2000);
+}
+
+async function tick(id){
+  if(id!==currentId){clearInterval(poll);return}
+  try{const r=await fetch(`/documents/${id}/logs`);if(r.ok) renderSteps(await r.json())}catch(_){}
+  try{
+    const r=await fetch(`/documents/${id}`);
+    if(!r.ok) return;
+    const doc=await r.json();
+    if(doc.status==='done'){
+      clearInterval(poll);
+      $id('pbar').classList.remove('on');
+      renderSteps(doc.logs);
+      showResult(doc);
+      $id('jobBadge').innerHTML='✓&nbsp;Done';
+      $id('jobBadge').className='badge bdg-done';
+      $id('jobSub').textContent=`${doc.source_language||'Unknown'} · ${(doc.file_type||'').toUpperCase()} · Quality ${doc.quality_score!=null?(doc.quality_score*100).toFixed(0)+'%':'—'}`;
+      allDone();
+      loadHistory();
+    } else if(doc.status==='failed'){
+      clearInterval(poll);
+      $id('pbar').classList.remove('on');
+      $id('jobBadge').innerHTML='✕&nbsp;Failed';
+      $id('jobBadge').className='badge bdg-fail';
+      $id('jobSub').textContent='Processing failed';
+      $id('errBox').textContent=doc.error||'Unknown error';
+      $id('errBox').style.display='block';
+      loadHistory();
+    }
+  }catch(_){}
+}
+
+function renderSteps(logs){
+  if(!logs||!logs.length) return;
+  const list=$id('stepList');
+  if(list.querySelector('.steps-empty')) list.innerHTML='';
+  logs.forEach(log=>{
+    if(log.step<=seenSteps) return;
+    seenSteps=log.step;
+    const pid=PS_MAP[log.tool_name];
+    if(pid){
+      document.querySelectorAll('.ps.active').forEach(p=>p.className='ps done');
+      const p=$id(pid); if(p) p.className='ps active';
+    }
+    const row=document.createElement('div');
+    row.className='step';
+    row.innerHTML=`
+      <div class="step-badge">${log.step}</div>
+      <div class="step-content">
+        <div class="step-tool">${esc(log.tool_name)}</div>
+        <div class="step-summary">${esc(log.summary)}</div>
+      </div>`;
+    list.appendChild(row);
+    row.scrollIntoView({behavior:'smooth',block:'nearest'});
+  });
+}
+
+function allDone(){
+  document.querySelectorAll('.ps').forEach(p=>{
+    if(p.classList.contains('active')||p.classList.contains('done')) p.className='ps done';
+  });
+  const s=$id('ps-save'); if(s) s.className='ps done';
+}
+
+function showResult(doc){
+  $id('resLang').textContent=doc.source_language||'—';
+  $id('resType').textContent=(doc.file_type||'—').toUpperCase();
+  $id('resScore').textContent=doc.quality_score!=null?(doc.quality_score*100).toFixed(0)+'%':'—';
+  $id('resOrig').textContent=clip(doc.original_text,3000);
+  const has=!!doc.translated_text;
+  $id('transStat').style.display=has?'block':'none';
+  $id('tabTrans').style.display=has?'inline-block':'none';
+  if(has){$id('resTrans').textContent=clip(doc.translated_text,3000);switchTab('trans')}
+  else switchTab('orig');
+  $id('resultCard').style.display='block';
+}
+
+function clip(t,n){return(t||'').substring(0,n)+((t||'').length>n?'\n\n[truncated…]':'')}
+
+// ── TABS ──
+function switchTab(name){
+  ['orig','trans'].forEach(k=>$id(`tp-${k}`).classList.toggle('on',k===name));
+  document.querySelectorAll('.tab').forEach((b,i)=>b.classList.toggle('on',(i===0&&name==='orig')||(i===1&&name==='trans')));
+}
+
+// ── COPY ──
+async function copyText(id,btn){
+  await navigator.clipboard.writeText($id(id).textContent).catch(()=>{});
+  btn.textContent='Copied!'; setTimeout(()=>btn.textContent='Copy',1500);
+}
+
+// ── HISTORY ──
+async function loadHistory(){
+  try{const r=await fetch('/documents');if(!r.ok)return;renderHistory(await r.json())}catch(_){}
+}
+
+function renderHistory(docs){
+  const list=$id('histList');
+  const items=docs.filter(d=>d.id!==currentId);
+  $id('histCount').textContent=items.length;
+  if(!items.length){list.innerHTML='<div class="hi-empty">No documents yet.<br>Upload one to get started.</div>';return}
+  list.innerHTML='';
+  items.forEach(doc=>list.appendChild(makeHI(doc)));
+}
+
+function makeHI(doc){
+  const ft=doc.file_type||'image';
+  const icon=ICON[ft]||'📄';
+  const icls=ICLS[ft]||'ji-img';
+  const si=doc.status==='done'?'✅':doc.status==='failed'?'❌':'⏳';
+  const lang=doc.source_language||'—';
+  const ago=timeAgo(doc.created_at);
+
+  const w=document.createElement('div');
+  w.className='hi'; w.dataset.id=doc.id;
+  w.innerHTML=`
+    <div class="hi-row">
+      <div class="hi-icon ${icls}">${icon}</div>
+      <div class="hi-body">
+        <div class="hi-name">${esc(doc.filename)}</div>
+        <div class="hi-meta">${esc(lang)} &middot; ${esc((doc.file_type||'').toUpperCase())} &middot; ${ago}</div>
+      </div>
+      <div class="hi-right">
+        <span class="hi-status">${si}</span>
+        <span class="hi-chev">▾</span>
+      </div>
+    </div>
+    <div class="hi-detail" id="hd-${doc.id}">
+      <div style="padding:12px 13px;color:var(--text3);font-size:.75rem">Loading…</div>
+    </div>`;
+
+  w.querySelector('.hi-row').addEventListener('click',async()=>{
+    const open=w.classList.contains('open');
+    document.querySelectorAll('.hi.open').forEach(i=>i.classList.remove('open'));
+    if(!open){
+      w.classList.add('open');
+      const d=document.getElementById(`hd-${doc.id}`);
+      if(!d.dataset.loaded){
+        const full=await fetch(`/documents/${doc.id}`).then(r=>r.json());
+        d.dataset.loaded='1';
+        d.innerHTML=buildDetail(full);
+      }
+    }
+  });
+  return w;
+}
+
+function buildDetail(doc){
+  const lang=esc(doc.source_language||'—');
+  const q=doc.quality_score!=null?(doc.quality_score*100).toFixed(0)+'%':'—';
+  const type=esc((doc.file_type||'').toUpperCase());
+
+  const steps=(doc.logs||[]).map(l=>`
+    <div class="hi-step">
+      <div class="hi-step-num">${l.step}</div>
+      <div>
+        <div class="hi-step-tool">${esc(l.tool_name)}</div>
+        <div class="hi-step-desc">${esc(l.summary)}</div>
+      </div>
+    </div>`).join('');
+
+  const orig=esc((doc.original_text||'').substring(0,400));
+  const trans=doc.translated_text?esc(doc.translated_text.substring(0,400)):null;
+  const more=t=>t&&t.length>400?'<span style="color:var(--text3);font-size:.63rem"> …[truncated]</span>':'';
+
+  return `
+    <div class="hi-chips">
+      <span class="hchip lang">🌐 ${lang}</span>
+      <span class="hchip">${type}</span>
+      <span class="hchip">📊 ${q}</span>
+      ${doc.translated_text?'<span class="hchip ok">✓ Translated</span>':''}
+    </div>
+    ${steps?`<div class="hi-steps-wrap">
+      <div class="hi-section-label">Agent Steps</div>
+      ${steps}
+    </div>`:''}
+    <div class="hi-texts">
+      <div class="hi-section-label" style="margin-bottom:6px">Original Text</div>
+      <div class="hi-pre">${orig}${more(doc.original_text)}</div>
+      ${trans?`<div class="hi-section-label" style="margin:10px 0 6px">English Translation</div>
+      <div class="hi-pre">${trans}${more(doc.translated_text)}</div>`:''}
+      ${doc.error?`<div class="err-box" style="margin:10px 0 0">${esc(doc.error)}</div>`:''}
+    </div>`;
+}
+
+// ── UTILS ──
+function $id(id){return document.getElementById(id)}
+function esc(s){if(!s)return'';return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;')}
+function timeAgo(iso){
+  const s=(Date.now()-new Date(iso).getTime())/1000;
+  if(s<60)   return Math.round(s)+'s ago';
+  if(s<3600) return Math.round(s/60)+'m ago';
+  if(s<86400)return Math.round(s/3600)+'h ago';
+  return Math.round(s/86400)+'d ago';
+}
+
+loadHistory();
+</script>
+</body>
+</html>

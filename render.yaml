@@ -1,0 +1,19 @@
+# Render Blueprint — web service only.
+# Reuse the existing Supabase Postgres URL (set DATABASE_URL in the dashboard).
+# Free web instances sleep after 15 minutes of idle traffic.
+
+services:
+  - type: web
+    name: klovertech-idp
+    runtime: python
+    plan: free
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn main:app --host 0.0.0.0 --port $PORT
+    healthCheckPath: /docs
+    envVars:
+      - key: PYTHON_VERSION
+        value: "3.11.11"
+      - key: OPENAI_API_KEY
+        sync: false
+      - key: DATABASE_URL
+        sync: false

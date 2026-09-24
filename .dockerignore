@@ -1,0 +1,10 @@
+.env
+.venv
+venv
+.git
+__pycache__
+*.pyc
+.pytest_cache
+test_files
+KloverTech_Interview_Task.pdf
+README.md
